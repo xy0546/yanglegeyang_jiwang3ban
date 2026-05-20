@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>羊了个羊 - 10卡槽完美复刻版</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{
+            background:url("https://pic.16pic.com/sucai/2020/16pic_2020641_s.jpg") no-repeat center center fixed;
+            background-size:cover;
+            display:flex;
+            flex-direction:column;
+            align-items:center;padding:20px;min-height:100vh;
+        }
+        .title-box{
+            background:rgba(255,255,255,0.9);
+            padding:10px 25px;border-radius:15px;
+            margin-bottom:12px;box-shadow:0 3px 10px rgba(0,0,0,0.15);
+        }
+        h2{color:#d96b6b;font-size:24px;}
+        .desc{color:#555;margin-top:5px;font-size:15px;text-align:center;}
+
+        .slotWrap{
+            width:580px;height:85px;
+            background:rgba(255,255,255,0.8);
+            backdrop-filter:blur(4px);
+            border-radius:16px;display:flex;
+            align-items:center;justify-content:center;
+            gap:7px;padding:0 12px;margin:10px 0 25px 0;
+            border:2px solid #e4b9b9;box-shadow:0 4px 12px rgba(0,0,0,0.15);
+        }
+        .slot{
+            width:52px;height:52px;background:#fff;
+            border-radius:10px;border:2px solid #e0c0c0;
+            display:flex;align-items:center;justify-content:center;
+            font-size:28px;box-shadow:0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .gameArea{
+            position:relative;width:450px;height:500px;
+            background:rgba(255,255,255,0.65);
+            backdrop-filter:blur(4px);
+            border-radius:18px;padding:20px;
+            box-shadow:0 6px 15px rgba(0,0,0,0.2);
+            overflow:hidden;
+        }
+
+        .card{
+            width:50px;height:50px;background:#fff;
+            border-radius:11px;box-shadow:0 3px 8px rgba(0,0,0,0.25);
+            position:absolute;display:flex;align-items:center;justify-content:center;
+            font-size:26px;cursor:pointer;transition:0.15s;
+            user-select:none;border:2px solid #eee;
+        }
+        .card:hover{transform:scale(1.06);z-index:999 !important;}
+        .card:active{transform:scale(0.96);}
+        .card.covered{
+            opacity:0.45;filter:grayscale(30%);
+            pointer-events:none;cursor:not-allowed;
+        }
+        .btnBox{margin-top:25px;}
+        button{
+            padding:11px 28px;border:none;background:#e76b6b;
+            color:#fff;border-radius:10px;font-size:16px;
+            cursor:pointer;box-shadow:0 3px 8px rgba(0,0,0,0.15);
+        }
+        button:hover{background:#d45555;}
+    </style>
+</head>
+<body>
+
+<div class="title-box">
+    <h2>🐏 羊了个羊 · 10卡槽完美版</h2>
+    <div class="desc">多层重叠 | 上层未消下层不可点 | 凑3消除 | 卡槽满10失败</div>
+</div>
+
+<div class="slotWrap" id="slotWrap">
+    <div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div>
+    <div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div>
+</div>
+
+<div class="gameArea" id="gameArea"></div>
+
+<div class="btnBox">
+    <button onclick="resetGame()">重新开局</button>
+</div>
+
+<script>
+const icons = ['🍉','🍑','🍒','🥝','🍓','🥭','🍇','🍎','🍊','🥥','🍋','🍐','🍆','🥒','🥕','🌽','🧄','🧅','🥜','🫐'];
+const MAX_SLOT = 10;
+let slotArr = [];
+let cards = [];
+
+const layers = [
+    {z:1, list:[
+        {x:20,y:20},{x:80,y:20},{x:140,y:20},{x:200,y:20},{x:260,y:20},{x:320,y:20},{x:380,y:20},
+        {x:50,y:80},{x:110,y:80},{x:170,y:80},{x:230,y:80},{x:290,y:80},{x:350,y:80},
+        {x:80,y:140},{x:140,y:140},{x:200,y:140},{x:260,y:140},{x:320,y:140},
+        {x:110,y:200},{x:170,y:200},{x:230,y:200},{x:290,y:200},
+        {x:140,y:260},{x:200,y:260},{x:260,y:260},
+    ]},
+    {z:2, list:[
+        {x:50,y:50},{x:110,y:50},{x:170,y:50},{x:230,y:50},{x:290,y:50},
+        {x:80,y:110},{x:140,y:110},{x:200,y:110},{x:260,y:110},
+        {x:110,y:170},{x:170,y:170},{x:230,y:170},
+        {x:140,y:230},{x:200,y:230},
+    ]},
+    {z:3, list:[
+        {x:100,y:80},{x:160,y:80},{x:220,y:80},
+        {x:130,y:140},{x:190,y:140},
+        {x:160,y:200},
+    ]}
+];
+
+function initGame(){
+    slotArr = [];
+    renderSlot();
+    document.getElementById('gameArea').innerHTML = '';
+    createCards();
+}
+
+function createCards(){
+    let pool = [];
+    icons.forEach(ico=>{
+        for(let i=0;i<6;i++) pool.push(ico);
+    });
+    pool.sort(()=>Math.random()-0.5);
+
+    let idx = 0;
+    cards = [];
+    const game = document.getElementById('gameArea');
+
+    layers.forEach(layer=>{
+        layer.list.forEach(p=>{
+            if(idx >= pool.length) return;
+            let ico = pool[idx++];
+            let el = document.createElement('div');
+            el.className = 'card';
+            el.style.left = p.x+'px';
+            el.style.top = p.y+'px';
+            el.style.zIndex = layer.z;
+            el.innerText = ico;
+            el.dataset.ico = ico;
+            el.onclick = ()=>clickCard(el,ico);
+            game.appendChild(el);
+            cards.push({el,ico,z:layer.z,x:p.x,y:p.y});
+        });
+    });
+    updateCover();
+}
+
+function clickCard(el,ico){
+    if(slotArr.length >= MAX_SLOT){
+        alert('卡槽已满10格，游戏失败！');
+        return;
+    }
+    el.remove();
+    cards = cards.filter(c=>c.el !== el);
+    slotArr.push(ico);
+    autoClear();
+    renderSlot();
+    updateCover();
+    checkWin();
+}
+
+function updateCover(){
+    cards.forEach(c=>{
+        let covered = false;
+        cards.forEach(other=>{
+            if(c === other) return;
+            if(other.z > c.z && 
+               Math.abs(other.x - c.x) < 35 && 
+               Math.abs(other.y - c.y) < 35){
+                covered = true;
+            }
+        });
+        c.el.classList.toggle('covered', covered);
+    });
+}
+
+function autoClear(){
+    let changed;
+    do{
+        changed = false;
+        let cnt = {};
+        slotArr.forEach(i=>cnt[i]=(cnt[i]||0)+1);
+        for(let k in cnt){
+            if(cnt[k]>=3){
+                let rem = 0;
+                slotArr = slotArr.filter(i=>{
+                    if(i===k && rem<3){rem++;changed=true;return false;}
+                    return true;
+                });
+                break;
+            }
+        }
+    }while(changed);
+}
+
+function checkWin(){
+    if(document.querySelectorAll('.card').length === 0 && slotArr.length === 0){
+        setTimeout(()=>{
+            alert('🎉 恭喜通关！全部消除成功！');
+            resetGame();
+        },300);
+    }
+}
+
+function renderSlot(){
+    document.querySelectorAll('.slot').forEach((s,i)=>{
+        s.innerText = slotArr[i]||'';
+    });
+}
+
+function resetGame(){initGame();}
+window.onload = initGame;
+</script>
+</body>
+</html>
